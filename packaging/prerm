@@ -1,0 +1,37 @@
+#!/bin/bash
+# prerm - Server Suite pre-removal script
+set -e
+
+SUITE_SYSTEMD_UNITS="/lib/systemd/system/server-suite-*.service
+/lib/systemd/system/server-suite-*.timer"
+
+case "$1" in
+    remove|purge)
+        echo "server-suite: Stopping timers and services..."
+
+        # Stop and disable any server-suite timers
+        for unit in $(systemctl list-units --type=timer --no-legend 2>/dev/null | \
+                      grep "server-suite-" | awk '{print $1}'); do
+            systemctl stop "$unit" 2>/dev/null || true
+            systemctl disable "$unit" 2>/dev/null || true
+        done
+
+        # Remove the symlink
+        rm -f /usr/bin/server-suite
+
+        echo "server-suite: Service stopped."
+        echo "server-suite: Note: /opt/server-suite/ data is preserved."
+        echo "server-suite: To fully remove: sudo rm -rf /opt/server-suite /var/log/server-suite"
+        ;;
+
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+
+    *)
+        echo "prerm called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

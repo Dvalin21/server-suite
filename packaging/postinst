@@ -1,0 +1,60 @@
+#!/bin/bash
+# postinst - Server Suite post-installation script
+set -e
+
+SUITE_DIR="/usr/lib/server-suite"
+BIN_LINK="/usr/bin/server-suite"
+
+case "$1" in
+    configure)
+        echo "server-suite: Configuring..."
+
+        # Install Python dependencies
+        if [ -f "$SUITE_DIR/requirements.txt" ]; then
+            echo "server-suite: Installing Python dependencies..."
+            pip3 install --quiet --break-system-packages \
+                -r "$SUITE_DIR/requirements.txt" 2>/dev/null || \
+            pip3 install --quiet \
+                -r "$SUITE_DIR/requirements.txt" 2>/dev/null || \
+            echo "server-suite: Warning: pip install failed. Run manually:"
+            echo "  sudo pip3 install -r $SUITE_DIR/requirements.txt"
+        fi
+
+        # Create symlink for the server-suite command
+        if [ ! -L "$BIN_LINK" ]; then
+            ln -sf "$SUITE_DIR/server_suite.py" "$BIN_LINK"
+            chmod +x "$SUITE_DIR/server_suite.py"
+        fi
+
+        # Create runtime directories
+        mkdir -p /opt/server-suite/{secrets,scripts,logs,backups}
+        mkdir -p /var/log/server-suite
+        chmod 700 /opt/server-suite/secrets
+
+        # Create server-suite group for management access
+        if ! getent group server-suite > /dev/null 2>&1; then
+            groupadd --system server-suite
+        fi
+
+        # Set ownership
+        chown -R root:server-suite /opt/server-suite
+        chmod 750 /opt/server-suite
+
+        echo "server-suite: Installation complete."
+        echo ""
+        echo "  Run 'sudo server-suite' to begin setup."
+        echo "  Documentation: /usr/share/doc/server-suite/"
+        echo ""
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

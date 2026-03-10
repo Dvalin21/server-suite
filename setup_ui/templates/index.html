@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Suite — Setup Wizard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg:        #0a0e1a;
+            --surface:   #111827;
+            --surface2:  #1a2235;
+            --border:    #1f2d44;
+            --accent:    #00d4ff;
+            --accent2:   #7c3aed;
+            --success:   #10b981;
+            --warning:   #f59e0b;
+            --danger:    #ef4444;
+            --text:      #e2e8f0;
+            --text-dim:  #64748b;
+            --text-muted:#334155;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 14px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Background grid pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ---- Layout ---- */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            background: rgba(10, 14, 26, 0.95);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .logo {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .logo span { color: var(--text-dim); }
+
+        .header-steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-left: auto;
+        }
+
+        .step-dot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: default;
+            position: relative;
+        }
+
+        .step-dot.active { color: var(--accent); }
+        .step-dot.done   { color: var(--success); }
+
+        .step-dot .num {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 1px solid currentColor;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .step-dot.active .num {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+        }
+
+        .step-dot.done .num {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .step-sep {
+            width: 24px; height: 1px;
+            background: var(--border);
+        }
+
+        /* ---- Main content ---- */
+        .main {
+            flex: 1;
+            margin-top: 56px;
+            display: flex;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ---- Sidebar ---- */
+        .sidebar {
+            width: 280px;
+            min-height: calc(100vh - 56px);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 32px 0;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section {
+            padding: 0 20px;
+            margin-bottom: 32px;
+        }
+
+        .sidebar-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        /* Hardware stats in sidebar */
+        .hw-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hw-stat:last-child { border-bottom: none; }
+        .hw-stat-label { color: var(--text-dim); font-size: 12px; }
+        .hw-stat-value { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent); }
+
+        /* Resource meter */
+        .resource-meter {
+            margin-bottom: 16px;
+        }
+
+        .meter-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .meter-label { color: var(--text-dim); }
+        .meter-value { font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+
+        .meter-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .meter-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease, background-color 0.3s ease;
+            background: var(--accent);
+        }
+
+        .meter-fill.warn   { background: var(--warning); }
+        .meter-fill.danger { background: var(--danger); }
+
+        /* ---- Content area ---- */
+        .content {
+            flex: 1;
+            padding: 40px;
+            max-width: 900px;
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .page-subtitle {
+            color: var(--text-dim);
+            margin-bottom: 36px;
+            line-height: 1.6;
+        }
+
+        /* ---- Role cards grid ---- */
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .role-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .role-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transition: transform 0.2s ease;
+        }
+
+        .role-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 212, 255, 0.08);
+        }
+
+        .role-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .role-card.selected {
+            border-color: var(--accent);
+            background: var(--surface2);
+        }
+
+        .role-card.selected::before {
+            transform: scaleX(1);
+            background: var(--accent);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.5);
+        }
+
+        .role-card.infeasible {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .role-card.infeasible:hover {
+            transform: none;
+            border-color: var(--border);
+        }
+
+        .role-icon {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .role-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .role-desc {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .role-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .role-tag {
+            font-size: 10px;
+            font-family: 'IBM Plex Mono', monospace;
+            padding: 2px 8px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+
+        .role-tag.docker { border-color: #2563eb33; color: #60a5fa; }
+        .role-tag.native { border-color: #16a34a33; color: #4ade80; }
+        .role-tag.warn   { border-color: #d9770633; color: var(--warning); }
+
+        .role-check {
+            position: absolute;
+            top: 16px; right: 16px;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .role-card.selected .role-check {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .role-check::after {
+            content: '✓';
+            font-size: 11px;
+            font-weight: 700;
+            color: transparent;
+        }
+
+        .role-card.selected .role-check::after {
+            color: var(--bg);
+        }
+
+        /* ---- Warnings ---- */
+        .warning-box {
+            display: flex;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .warning-box.warn {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
+        }
+
+        .warning-box.error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #f87171;
+        }
+
+        .warning-box.success {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #34d399;
+        }
+
+        /* ---- Forms ---- */
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ---- Buttons ---- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-family: 'IBM Plex Sans', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover {
+            background: #00b8d9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            margin-top: 32px;
+        }
+
+        /* ---- Progress page ---- */
+        .progress-log {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            height: 420px;
+            overflow-y: auto;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            margin-bottom: 24px;
+        }
+
+        .log-line {
+            display: flex;
+            gap: 12px;
+            padding: 4px 0;
+            line-height: 1.5;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-time { color: var(--text-muted); flex-shrink: 0; }
+        .log-stage {
+            flex-shrink: 0;
+            width: 70px;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: var(--surface2);
+            color: var(--text-dim);
+            text-align: center;
+        }
+        .log-msg.info    { color: var(--text); }
+        .log-msg.success { color: var(--success); }
+        .log-msg.warning { color: var(--warning); }
+        .log-msg.error   { color: var(--danger); }
+
+        .overall-progress {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .overall-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .overall-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+        }
+
+        /* ---- Summary page ---- */
+        .credentials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .credential-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .credential-service {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        .credential-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+        }
+
+        .credential-row:last-child { border-bottom: none; }
+        .credential-key { color: var(--text-dim); }
+        .credential-val {
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--text);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--surface2);
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .credential-val:hover {
+            background: var(--border);
+        }
+
+        .service-url-list { margin-bottom: 32px; }
+
+        .url-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .url-name { font-weight: 600; margin-bottom: 2px; }
+        .url-link {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .url-link:hover { text-decoration: underline; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--surface); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Divider */
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 28px 0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+    <div class="logo">SERVER<span>/</span>SUITE</div>
+    <nav class="header-steps">
+        <div class="step-dot active" id="step-1">
+            <div class="num">1</div>
+            <span>Hardware</span>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-dot" id="step-2">
+            <div class="num">2</div>
+            <span>Roles</span>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-dot" id="step-3">
+            <div class="num">3</div>
+            <span>Configure</span>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-dot" id="step-4">
+            <div class="num">4</div>
+            <span>Install</span>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-dot" id="step-5">
+            <div class="num">5</div>
+            <span>Summary</span>
+        </div>
+    </nav>
+</header>
+
+<div class="main">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-label">Hardware</div>
+            <div id="hw-stats">
+                <div class="hw-stat">
+                    <span class="hw-stat-label">CPU</span>
+                    <span class="hw-stat-value" id="hw-cpu">—</span>
+                </div>
+                <div class="hw-stat">
+                    <span class="hw-stat-label">Cores</span>
+                    <span class="hw-stat-value" id="hw-cores">—</span>
+                </div>
+                <div class="hw-stat">
+                    <span class="hw-stat-label">RAM</span>
+                    <span class="hw-stat-value" id="hw-ram">—</span>
+                </div>
+                <div class="hw-stat">
+                    <span class="hw-stat-label">Disks</span>
+                    <span class="hw-stat-value" id="hw-disks">—</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Resource Impact</div>
+            <div class="resource-meter">
+                <div class="meter-header">
+                    <span class="meter-label">RAM Required</span>
+                    <span class="meter-value" id="ram-needed">0 GB</span>
+                </div>
+                <div class="meter-bar">
+                    <div class="meter-fill" id="ram-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="resource-meter">
+                <div class="meter-header">
+                    <span class="meter-label">CPU Cores</span>
+                    <span class="meter-value" id="cores-needed">0 cores</span>
+                </div>
+                <div class="meter-bar">
+                    <div class="meter-fill" id="cores-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Selected Roles</div>
+            <div id="selected-roles-list" style="font-size: 12px; color: var(--text-dim);">
+                No roles selected
+            </div>
+        </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+
+        <!-- Page 1: Hardware Summary -->
+        <div class="page active" id="page-1">
+            <h1 class="page-title">Hardware Detected</h1>
+            <p class="page-subtitle">Server Suite has scanned your system. Review the hardware summary below before selecting server roles.</p>
+
+            <div id="hw-warnings"></div>
+            <div id="hw-detail-table"></div>
+
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="goToPage(2)">Select Roles →</button>
+            </div>
+        </div>
+
+        <!-- Page 2: Role Selection -->
+        <div class="page" id="page-2">
+            <h1 class="page-title">Select Server Roles</h1>
+            <p class="page-subtitle">Choose the roles this server will perform. You can select multiple roles. The resource meter shows combined requirements.</p>
+
+            <div id="role-warnings"></div>
+            <div class="roles-grid" id="roles-grid"></div>
+
+            <div class="page-actions">
+                <button class="btn btn-secondary" onclick="goToPage(1)">← Back</button>
+                <button class="btn btn-primary" id="btn-roles-next" onclick="goToPage(3)">Configure →</button>
+            </div>
+        </div>
+
+        <!-- Page 3: Configuration -->
+        <div class="page" id="page-3">
+            <h1 class="page-title">Configure</h1>
+            <p class="page-subtitle">Set up your server details. These settings apply to all installed roles.</p>
+
+            <div class="form-group">
+                <label class="form-label">Domain Name</label>
+                <input type="text" class="form-input" id="conf-domain"
+                       placeholder="example.com" autocomplete="off">
+                <div class="form-hint">Your server's primary domain. Used for TLS certificates, mail routing, and service URLs.</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Hostname</label>
+                <input type="text" class="form-input" id="conf-hostname"
+                       placeholder="server01" autocomplete="off">
+                <div class="form-hint">This server's hostname (without domain). e.g., server01 → server01.example.com</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">SSH Port</label>
+                <input type="number" class="form-input" id="conf-ssh-port"
+                       value="22" min="1" max="65535" style="max-width: 120px;">
+                <div class="form-hint">⚠ If you change this, make sure your SSH client connects to the new port.</div>
+            </div>
+
+            <div id="proxy-choice-group" class="form-group" style="display:none;">
+                <label class="form-label">Reverse Proxy</label>
+                <select class="form-select" id="conf-proxy" style="max-width: 300px;">
+                    <option value="npm">Nginx Proxy Manager (GUI, recommended)</option>
+                    <option value="traefik">Traefik (auto-discovery, advanced)</option>
+                </select>
+                <div class="form-hint">Nginx Proxy Manager has a clean web UI. Traefik auto-discovers Docker containers.</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notification Email</label>
+                <input type="email" class="form-input" id="conf-email"
+                       placeholder="admin@example.com" autocomplete="off"
+                       style="max-width: 380px;">
+                <div class="form-hint">Where SMART reports, maintenance alerts, and health notifications are sent.</div>
+            </div>
+
+            <div id="per-role-config"></div>
+
+            <div class="page-actions">
+                <button class="btn btn-secondary" onclick="goToPage(2)">← Back</button>
+                <button class="btn btn-primary" onclick="saveAndInstall()">Start Installation →</button>
+            </div>
+        </div>
+
+        <!-- Page 4: Installation Progress -->
+        <div class="page" id="page-4">
+            <h1 class="page-title">Installing</h1>
+            <p class="page-subtitle">Server Suite is installing your selected roles. This may take 10–30 minutes depending on your internet connection and selections.</p>
+
+            <div class="overall-progress">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600;" id="progress-stage">Preparing...</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; color: var(--accent);" id="progress-pct">0%</span>
+                </div>
+                <div class="overall-bar">
+                    <div class="overall-fill" id="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="progress-log" id="progress-log"></div>
+
+            <div id="install-complete-actions" style="display:none;" class="page-actions">
+                <button class="btn btn-primary" onclick="goToPage(5)">View Summary →</button>
+            </div>
+        </div>
+
+        <!-- Page 5: Summary -->
+        <div class="page" id="page-5">
+            <h1 class="page-title">Setup Complete</h1>
+            <p class="page-subtitle">Your server is configured. Save the credentials below — they will not be shown again after this page is closed.</p>
+
+            <div class="warning-box warn" style="margin-bottom: 24px;">
+                ⚠ <strong>Save these credentials now.</strong> Once you close this page, you can find them at <code>/opt/server-suite/secrets/</code> on the server.
+            </div>
+
+            <div id="service-urls" class="service-url-list"></div>
+            <hr class="divider">
+            <div id="credentials-grid" class="credentials-grid"></div>
+
+            <div class="page-actions" style="justify-content: space-between;">
+                <button class="btn btn-secondary" onclick="downloadCredentials()">⬇ Download Credentials</button>
+                <button class="btn btn-danger" onclick="completeSetup()">Close Setup Wizard</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+const socket = io();
+let hardware = {};
+let roles = {};
+let selectedRoles = new Set();
+let installConfig = {};
+
+// ---- Socket ----
+socket.on('progress', function(data) {
+    appendLog(data.stage, data.message, data.level || 'info', data.time);
+    document.getElementById('progress-stage').textContent = data.message;
+    document.getElementById('progress-pct').textContent = data.percent + '%';
+    document.getElementById('progress-bar').style.width = data.percent + '%';
+});
+
+socket.on('install_complete', function(data) {
+    appendLog('done', '✓ Installation complete!', 'success', new Date().toTimeString().slice(0,8));
+    document.getElementById('install-complete-actions').style.display = 'flex';
+    loadSummary();
+});
+
+socket.on('install_error', function(data) {
+    appendLog('error', '✗ ' + data.error, 'error', new Date().toTimeString().slice(0,8));
+});
+
+// ---- Init ----
+async function init() {
+    await loadHardware();
+    await loadRoles();
+}
+
+async function loadHardware() {
+    try {
+        const r = await fetch('/api/hardware');
+        hardware = await r.json();
+        renderHardwareSidebar();
+        renderHardwarePage();
+    } catch(e) {
+        console.error('Hardware load failed:', e);
+    }
+}
+
+async function loadRoles() {
+    try {
+        const r = await fetch('/api/roles');
+        roles = await r.json();
+        renderRoles();
+    } catch(e) {
+        console.error('Roles load failed:', e);
+    }
+}
+
+function renderHardwareSidebar() {
+    const cpu = hardware.cpu || {};
+    const ram = hardware.ram || {};
+    document.getElementById('hw-cpu').textContent =
+        (cpu.model || '').split(' ').slice(-3).join(' ') || '—';
+    document.getElementById('hw-cores').textContent =
+        cpu.cores_physical ? `${cpu.cores_physical}P / ${cpu.cores_logical}L` : '—';
+    document.getElementById('hw-ram').textContent =
+        ram.total_gb ? `${ram.total_gb} GB` : '—';
+    const disks = (hardware.disks_hdd||[]).concat(hardware.disks_ssd||[]).concat(hardware.disks_nvme||[]);
+    document.getElementById('hw-disks').textContent =
+        disks.length ? `${disks.length} (${countTypes(disks)})` : '—';
+}
+
+function countTypes(disks) {
+    const counts = {};
+    disks.forEach(d => { counts[d.disk_type] = (counts[d.disk_type]||0)+1; });
+    return Object.entries(counts).map(([k,v]) => `${v}×${k}`).join(' ');
+}
+
+function renderHardwarePage() {
+    const warnings = hardware.warnings || [];
+    const warnEl = document.getElementById('hw-warnings');
+    warnEl.innerHTML = warnings.map(w =>
+        `<div class="warning-box warn">⚠ ${w}</div>`
+    ).join('');
+
+    const allDisks = (hardware.disks_hdd||[]).concat(hardware.disks_ssd||[]).concat(hardware.disks_nvme||[]);
+    const tableEl = document.getElementById('hw-detail-table');
+
+    if (allDisks.length === 0) {
+        tableEl.innerHTML = '<div class="warning-box warn">No disks detected.</div>';
+        return;
+    }
+
+    const rows = allDisks.map(d => `
+        <tr>
+            <td style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent)">${d.device}</td>
+            <td style="padding:10px 12px;font-size:12px">${d.disk_type}</td>
+            <td style="padding:10px 12px;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.model}</td>
+            <td style="padding:10px 12px;font-size:12px">${d.size_gb} GB</td>
+            <td style="padding:10px 12px;font-size:12px"><span style="color:${d.smart_health==='PASSED'?'var(--success)':d.smart_health==='FAILED'?'var(--danger)':'var(--warning)'}">${d.smart_health}</span></td>
+            <td style="padding:10px 12px;font-size:12px">${d.temperature_c ? d.temperature_c+'°C' : '—'}</td>
+            <td style="padding:10px 12px;font-size:12px">${d.is_os_disk ? '<span style="color:var(--warning)">OS Disk</span>' : '—'}</td>
+        </tr>
+    `).join('');
+
+    tableEl.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+            <thead>
+                <tr style="background:var(--surface2)">
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">Device</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">Type</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">Model</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">Size</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">SMART</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">Temp</th>
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)">Note</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function renderRoles() {
+    const grid = document.getElementById('roles-grid');
+    grid.innerHTML = '';
+    Object.entries(roles).forEach(([id, role]) => {
+        const card = document.createElement('div');
+        card.className = 'role-card' + (role.infeasible ? ' infeasible' : '');
+        card.id = `role-card-${id}`;
+        card.onclick = () => toggleRole(id, role);
+
+        const tags = [];
+        if (role.docker) tags.push('<span class="role-tag docker">Docker</span>');
+        else tags.push('<span class="role-tag native">Native</span>');
+        if (role.ram_warning) tags.push(`<span class="role-tag warn">⚠ ${role.min_ram_gb}GB RAM</span>`);
+        if (role.cpu_warning) tags.push(`<span class="role-tag warn">⚠ ${role.min_cores} cores</span>`);
+
+        card.innerHTML = `
+            <div class="role-check"></div>
+            <div class="role-icon">${role.icon}</div>
+            <div class="role-name">${role.name}</div>
+            <div class="role-desc">${role.description}</div>
+            <div class="role-meta">${tags.join('')}</div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function toggleRole(id, role) {
+    if (role.infeasible) return;
+    if (selectedRoles.has(id)) {
+        selectedRoles.delete(id);
+        document.getElementById(`role-card-${id}`).classList.remove('selected');
+    } else {
+        selectedRoles.add(id);
+        document.getElementById(`role-card-${id}`).classList.add('selected');
+    }
+    updateResourceMeters();
+    updateSidebarRoleList();
+    checkResourceFeasibility();
+}
+
+async function updateResourceMeters() {
+    const r = await fetch('/api/resource-check', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({roles: Array.from(selectedRoles)})
+    });
+    const data = await r.json();
+    const ram = hardware.ram || {};
+    const cpu = hardware.cpu || {};
+
+    document.getElementById('ram-needed').textContent = data.total_ram_needed.toFixed(1) + ' GB';
+    document.getElementById('cores-needed').textContent = data.total_cores_needed + ' cores';
+
+    const ramFill = document.getElementById('ram-fill');
+    ramFill.style.width = Math.min(100, data.ram_percentage) + '%';
+    ramFill.className = 'meter-fill' + (data.ram_percentage > 95 ? ' danger' : data.ram_percentage > 80 ? ' warn' : '');
+
+    const coresFill = document.getElementById('cores-fill');
+    coresFill.style.width = Math.min(100, data.cores_percentage) + '%';
+    coresFill.className = 'meter-fill' + (data.cores_percentage > 95 ? ' danger' : data.cores_percentage > 80 ? ' warn' : '');
+
+    const warnEl = document.getElementById('role-warnings');
+    const msgs = [...data.warnings.map(w => `<div class="warning-box warn">⚠ ${w}</div>`),
+                  ...data.errors.map(e => `<div class="warning-box error">✗ ${e}</div>`),
+                  ...data.dependency_warnings.map(d => `<div class="warning-box warn">→ ${d}</div>`)];
+    warnEl.innerHTML = msgs.join('');
+}
+
+function updateSidebarRoleList() {
+    const el = document.getElementById('selected-roles-list');
+    if (selectedRoles.size === 0) {
+        el.textContent = 'No roles selected';
+        return;
+    }
+    el.innerHTML = Array.from(selectedRoles).map(id => {
+        const r = roles[id] || {};
+        return `<div style="padding:4px 0;border-bottom:1px solid var(--border);">${r.icon||''} ${r.name||id}</div>`;
+    }).join('');
+}
+
+function checkResourceFeasibility() {
+    // Show proxy choice if web-related roles selected
+    const needsProxy = ['web','mail','files','comms','security','logging'].some(r => selectedRoles.has(r));
+    document.getElementById('proxy-choice-group').style.display = needsProxy ? 'block' : 'none';
+}
+
+function goToPage(n) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(`page-${n}`).classList.add('active');
+
+    for (let i = 1; i <= 5; i++) {
+        const dot = document.getElementById(`step-${i}`);
+        dot.className = 'step-dot' + (i === n ? ' active' : i < n ? ' done' : '');
+    }
+
+    // Pre-fill hostname from hardware
+    if (n === 3 && hardware.hostname) {
+        const parts = (hardware.hostname).split('.');
+        if (parts.length > 1) {
+            document.getElementById('conf-hostname').value = parts[0];
+            document.getElementById('conf-domain').value = parts.slice(1).join('.');
+        } else {
+            document.getElementById('conf-hostname').value = hardware.hostname;
+        }
+    }
+
+    window.scrollTo(0, 0);
+}
+
+async function saveAndInstall() {
+    const config = {
+        roles: Array.from(selectedRoles),
+        domain: document.getElementById('conf-domain').value,
+        hostname: document.getElementById('conf-hostname').value,
+        ssh_port: parseInt(document.getElementById('conf-ssh-port').value) || 22,
+        reverse_proxy: document.getElementById('conf-proxy').value,
+        notify_email: document.getElementById('conf-email').value,
+        sub_options: {},
+    };
+
+    installConfig = config;
+
+    // Save config
+    await fetch('/api/save-config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+    });
+
+    goToPage(4);
+
+    // Start installation
+    await fetch('/api/start-install', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(config)
+    });
+}
+
+function appendLog(stage, message, level, time) {
+    const log = document.getElementById('progress-log');
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `
+        <span class="log-time">${time||''}</span>
+        <span class="log-stage">${stage}</span>
+        <span class="log-msg ${level}">${message}</span>
+    `;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+}
+
+async function loadSummary() {
+    const [urlsR, credsR] = await Promise.all([
+        fetch('/api/service-urls'),
+        fetch('/api/credentials')
+    ]);
+    const urls = await urlsR.json();
+    const creds = await credsR.json();
+
+    // Service URLs
+    const urlEl = document.getElementById('service-urls');
+    const urlEntries = Object.entries(urls);
+    if (urlEntries.length) {
+        urlEl.innerHTML = '<div style="font-weight:700;margin-bottom:12px;font-size:16px;">Service URLs</div>' +
+            urlEntries.map(([svc, data]) => `
+            <div class="url-item">
+                <div>
+                    <div class="url-name">${svc}</div>
+                    <div style="font-size:12px;color:var(--text-dim)">${data.description||''}</div>
+                </div>
+                <a href="${data.url}" target="_blank" class="url-link">${data.url}</a>
+            </div>`).join('');
+    }
+
+    // Credentials
+    const credEl = document.getElementById('credentials-grid');
+    credEl.innerHTML = Object.entries(creds).map(([svc, vars]) => {
+        const rows = Object.entries(vars)
+            .filter(([k]) => !k.startsWith('#') && k.trim())
+            .map(([k, v]) => `
+            <div class="credential-row">
+                <span class="credential-key">${k}</span>
+                <span class="credential-val" onclick="copyToClipboard('${v.replace(/'/g, "\\'")}', this)" title="Click to copy">${v}</span>
+            </div>`).join('');
+        return `<div class="credential-card">
+            <div class="credential-service">${svc}</div>
+            ${rows}
+        </div>`;
+    }).join('');
+}
+
+function copyToClipboard(text, el) {
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = el.textContent;
+        el.textContent = 'Copied!';
+        el.style.color = 'var(--success)';
+        setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1500);
+    });
+}
+
+function downloadCredentials() {
+    fetch('/api/credentials').then(r => r.json()).then(creds => {
+        const content = JSON.stringify(creds, null, 2);
+        const blob = new Blob([content], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'server-suite-credentials.json';
+        a.click();
+    });
+}
+
+async function completeSetup() {
+    if (!confirm('Close the setup wizard? Make sure you have saved your credentials.')) return;
+    await fetch('/api/complete-setup', {method: 'POST'});
+    document.body.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;font-family:'IBM Plex Sans',sans-serif;color:#e2e8f0;background:#0a0e1a;">
+            <div>
+                <div style="font-size:48px;margin-bottom:24px;">✓</div>
+                <h1 style="font-size:24px;font-weight:700;margin-bottom:12px;">Setup Complete</h1>
+                <p style="color:#64748b;margin-bottom:24px;">Your server is configured. This wizard has been closed.</p>
+                <p style="color:#64748b;font-size:13px;">Manage your server at: <strong style="color:#00d4ff">https://your-server:9090</strong> (Cockpit)</p>
+            </div>
+        </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

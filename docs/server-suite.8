@@ -1,0 +1,108 @@
+.TH SERVER-SUITE 8 "2026-03-08" "1.0.0" "Server Suite Manual"
+.SH NAME
+server-suite \- all-in-one Linux server deployment and management suite
+.SH SYNOPSIS
+.B server-suite
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B server-suite
+is a comprehensive, role-based server automation tool for Ubuntu/Debian.
+On first run it launches a browser-based setup wizard (default port 7070)
+for selecting and configuring server roles. On subsequent runs it opens the
+terminal management console.
+.PP
+All operations require root privileges.
+.SH OPTIONS
+.TP
+.B \-\-dry\-run
+Set DRY_RUN=1. Show all commands that would be run without executing them.
+.TP
+.B \-\-status
+Print a status summary of installed roles and services, then exit.
+.TP
+.B \-\-role \fIROLE_ID\fR
+Install or manage a specific role directly (bypasses setup wizard).
+.TP
+.B \-\-version
+Print version and exit.
+.SH ROLES
+.TP
+.B identity
+FreeIPA (Kerberos + LDAP + PKI CA + DNS) or Samba4 AD Domain Controller.
+.TP
+.B storage
+BTRFS RAID arrays, SMART monitoring, BorgBackup, rclone offsite backup.
+.TP
+.B web
+Nginx Proxy Manager, Traefik v3, or OpenLiteSpeed with auto-TLS.
+.TP
+.B mail
+Mailcow: Postfix + Dovecot + Rspamd + SOGo webmail.
+.TP
+.B dns_dhcp
+Technitium DNS + DHCP server (suppressed when FreeIPA DNS is active).
+.TP
+.B database
+MariaDB, PostgreSQL, Redis, Adminer.
+.TP
+.B files
+Nextcloud, Collabora Online, Samba shares, NFS, Syncthing.
+.TP
+.B comms
+Matrix/Synapse + Element, Mattermost, Mumble.
+.TP
+.B vpn
+WireGuard (wg-easy) with peer QR codes, or OpenVPN.
+.TP
+.B security
+Wazuh SIEM — server mode or agent-only mode.
+.TP
+.B logging
+Grafana + Prometheus + Loki + Promtail, or Graylog + OpenSearch.
+.SH FILES
+.TP
+.I /etc/server-suite/defaults.conf
+Default configuration preserved across upgrades.
+.TP
+.I /opt/server-suite/config.json
+Live configuration — single source of truth for all installed roles.
+.TP
+.I /opt/server-suite/secrets/
+Encrypted secrets directory (chmod 700). Contains .env.<service> files.
+.TP
+.I /var/log/server-suite/
+Installation and audit logs.
+.SH ENVIRONMENT
+.TP
+.B DRY_RUN=1
+Show what would be run without making system changes.
+.SH EXAMPLES
+.PP
+First run (launches setup wizard):
+.RS
+.nf
+sudo server-suite
+.fi
+.RE
+.PP
+Dry-run to preview an install:
+.RS
+.nf
+sudo DRY_RUN=1 server-suite
+.fi
+.RE
+.PP
+Add FreeIPA identity role after initial setup:
+.RS
+.nf
+sudo server-suite --role identity
+.fi
+.RE
+.SH AUTHOR
+Server Suite contributors.
+.SH SEE ALSO
+.BR samba-tool (8),
+.BR ipa (1),
+.BR docker (1),
+.BR ufw (8),
+.BR auditctl (8)

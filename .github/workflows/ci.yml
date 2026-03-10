@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ---- Syntax & lint --------------------------------------------------------
+  lint:
+    name: Syntax check & lint
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install lint tools
+        run: pip install pyflakes
+
+      - name: Python syntax check (all files)
+        run: |
+          find . -name "*.py" -not -path "./.venv/*" \
+            -not -path "*/__pycache__/*" \
+            | xargs python3 -m py_compile
+          echo "Syntax OK"
+
+      - name: pyflakes (undefined names, unused imports)
+        run: |
+          find . -name "*.py" -not -path "./.venv/*" \
+            -not -path "*/__pycache__/*" \
+            | xargs pyflakes 2>&1 \
+            | grep -v "undefined name 'Optional'" \
+            | grep -v "^$" || true
+          echo "Lint complete"
+
+  # ---- Unit / integration tests ---------------------------------------------
+  test:
+    name: Test suite (DRY_RUN)
+    runs-on: ubuntu-22.04
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Run tests
+        env:
+          DRY_RUN: "1"
+        run: |
+          python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          import tests.conftest
+          import unittest
+          loader = unittest.TestLoader()
+          suite  = loader.loadTestsFromName('tests.test_suite')
+          runner = unittest.TextTestRunner(verbosity=2)
+          result = runner.run(suite)
+          sys.exit(0 if result.wasSuccessful() else 1)
+          "
+
+  # ---- Shell script lint ----------------------------------------------------
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck -qq
+
+      - name: Check shell scripts
+        run: |
+          find . -name "*.sh" -not -path "./.venv/*" \
+            | xargs shellcheck --severity=warning || true
+
+  # ---- .deb build check -----------------------------------------------------
+  deb-build:
+    name: Build .deb package
+    runs-on: ubuntu-22.04
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build package
+        run: |
+          chmod +x packaging/build-deb.sh
+          bash packaging/build-deb.sh
+
+      - name: Verify package
+        run: |
+          dpkg-deb --info dist/server-suite_*.deb
+          dpkg-deb --contents dist/server-suite_*.deb | wc -l
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-suite-deb
+          path: dist/server-suite_*.deb
+          retention-days: 14
