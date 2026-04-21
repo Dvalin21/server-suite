@@ -1,0 +1,12 @@
+Package: server-suite
+Version: 2.0.0
+Section: admin
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.8), python3-pip, ufw, fail2ban, docker.io, curl
+Maintainer: Server Suite Team <dev@example.com>
+Description: Self-hosted server automation and management suite
+ Server Suite provides idempotent installation and management of
+ common self-hosted services including web servers, databases,
+ file storage, and monitoring. Version 2.0 adds encrypted secrets,
+ drift detection, remote execution, and TPM integration.

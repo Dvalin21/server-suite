@@ -17,6 +17,32 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.0.0] — 2026-04-20
+
+### Added
+
+**Security Hardening**
+- `SafeExecutor` — replaces all subprocess calls, explicitly blocks `shell=True`, adds configurable timeouts (default 300s)
+- `RemoteExecutor` — SSH key path validation (checks file existence + permissions), strict host key checking, control master multiplexing
+- `SecretsVault` — refactored secrets storage with Fernet encryption, `confirm=True` flag on plaintext export
+- `TPMSealer` — TPM 2.0 hardware-bound sealing using PCRs 0,7 (BIOS/Secure Boot)
+- `DriftDetector` — configuration drift detection with checksums, captures baseline state
+
+**Packaging**
+- DEBIAN/ control file with proper dependencies
+- build_deb.sh script for .deb package generation
+
+### Security Fixes
+
+- Block command injection via shell=True in executor
+- Prevent SSH key path traversal attacks
+- Require confirmation for plaintext secret exports
+- Secure temp file handling in TPM operations
+- State file permissions (0o600)
+- Timeout protection on all subprocess calls
+
+---
+
 ## [1.0.0] — 2026-03-08
 
 ### Added

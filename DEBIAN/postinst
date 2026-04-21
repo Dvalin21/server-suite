@@ -1,0 +1,18 @@
+#!/bin/bash
+# Post-installation script
+
+set -e
+
+# Create necessary directories
+mkdir -p /opt/server-suite
+mkdir -p /var/log/server-suite
+
+# Set permissions
+chmod 755 /opt/server-suite
+chmod 700 /opt/server-suite/secrets 2>/dev/null || true
+
+# Create symlink
+ln -sf /opt/server-suite/server_suite.py /usr/local/bin/server-suite 2>/dev/null || true
+
+echo "Server Suite v2.0.0 installed successfully!"
+echo "Run 'server-suite --help' to get started."

@@ -25,10 +25,13 @@ Server Suite is a **role-based server automation tool** that deploys and manages
 - **Dual identity engines** — FreeIPA (Kerberos + LDAP + PKI CA + DNS + HBAC) _or_ Samba4 AD (Windows GPO/RSAT compatible)
 - **Hardened Docker networking** — all containers bind to `127.0.0.1` only; single ingress via Nginx Proxy Manager or Traefik
 - **Encrypted secrets management** — Fernet-encrypted master key; per-service `.env` files at `chmod 600`
+- **TPM 2.0 hardware sealing** — optional hardware-bound key protection
+- **Remote execution** — SSH-based remote deployment with key validation
+- **Drift detection** — configuration baseline and change detection
 - **Idempotent** — safe to re-run; detects existing state before acting
 - **Auditd + AppArmor + Fail2Ban** always installed as the base layer
 - **80-test integration suite** — runs fully in `DRY_RUN=1` mode, no system changes required
-- **Installable as a `.deb`** — `sudo dpkg -i server-suite_1.0.0_all.deb && sudo server-suite`
+- **Installable as a `.deb`** — `sudo dpkg -i server-suite_2.0.0_all.deb && sudo server-suite`
 
 ---
 
@@ -66,7 +69,7 @@ Per-role RAM minimums enforced at selection time:
 Download the latest `.deb` from the [Releases](https://github.com/your-org/server-suite/releases) page, then:
 
 ```bash
-sudo dpkg -i server-suite_1.0.0_all.deb
+sudo dpkg -i server-suite_2.0.0_all.deb
 sudo apt-get install -f          # resolves any missing dependencies
 sudo server-suite                # launches the setup wizard
 ```
@@ -289,7 +292,11 @@ server-suite/
 ├── core/                    # Foundation modules
 │   ├── hardware.py          # CPU/RAM/disk/NIC detection, SMART gating
 │   ├── config_manager.py    # config.json read/write — single source of truth
-│   ├── secrets.py           # Fernet encryption, .env file management
+│   ├── secrets.py           # Fernet encryption, .env file management (SecretsVault v2)
+│   ├── executor.py         # Safe command execution, blocks shell=True
+│   ├── remote.py          # SSH remote execution with key validation
+│   ├── tpm_seal.py       # TPM 2.0 hardware-bound sealing
+│   ├── drift.py          # Configuration drift detection
 │   ├── docker_engine.py     # daemon.json hardening, network creation
 │   ├── firewall.py          # UFW rule management
 │   ├── preflight.py         # System-level pre-flight checks
@@ -437,18 +444,18 @@ Test coverage:
 
 ```bash
 # Set version
-echo "1.0.0" > VERSION
+echo "2.0.0" > VERSION
 
 # Build
 bash packaging/build-deb.sh
 
-# Output: dist/server-suite_1.0.0_all.deb
+# Output: dist/server-suite_2.0.0_all.deb
 ```
 
 Install the built package:
 
 ```bash
-sudo dpkg -i dist/server-suite_1.0.0_all.deb
+sudo dpkg -i dist/server-suite_2.0.0_all.deb
 sudo apt-get install -f      # fix any missing deps
 sudo server-suite
 ```
