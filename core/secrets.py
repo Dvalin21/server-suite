@@ -10,7 +10,12 @@ import stat
 import re
 from pathlib import Path
 from typing import Optional
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
+
+try:
+    from cryptography.fernet import InvalidToken
+except ImportError:
+    InvalidToken = Exception
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,7 +54,7 @@ class SecretsVault:
             with open(SECRETS_FILE, "rb") as f:
                 decrypted = self.cipher.decrypt(f.read())
                 self._data = json.loads(decrypted.decode())
-        except (InvalidToken, json.JSONDecodeError) as e:
+        except (Exception, json.JSONDecodeError) as e:
             logger.error(f"Secrets file corrupted: {e}")
             self._data = {}
     
